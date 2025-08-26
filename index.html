@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Contenido</title>
+    <!-- Carga de Tailwind CSS para el diseño -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Estilos para el fondo de la página */
+        body {
+            background-image: url('https://assets.zyrosite.com/mnlJp8kNv2uqEwZ7/neo-b_web-AE0rBrkjkoiPj8ZE.png');
+            background-size: 110%;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        /* Clase para el efecto de arrastrar y soltar */
+        .drag-over {
+            @apply border-blue-400 bg-blue-900 bg-opacity-30;
+        }
+
+        /* Estilo para el feedback visual al hacer clic en el área */
+        #drop-area:active {
+            @apply border-blue-500 bg-gray-900 bg-opacity-30;
+            box-shadow: 0 0 10px rgba(96, 165, 250, 0.5);
+            transition: all 0.1s ease-in-out;
+        }
+
+        /* Estilo para los enlaces de los archivos */
+        .file-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Animación para el estado de procesamiento */
+        @keyframes pulse-border {
+            0% { border-color: #374151; }
+            50% { border-color: #60a5fa; }
+            100% { border-color: #374151; }
+        }
+
+        .processing {
+            animation: pulse-border 1.5s infinite;
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <!-- Título principal y subtítulo en la esquina superior izquierda -->
+    <div class="fixed top-4 left-4 p-4">
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Gestor de Contenido</h1>
+        <p class="text-md md:text-lg text-gray-900">Base de Conocimiento</p>
+    </div>
+
+    <!-- Botones para abrir los pop-ups, ahora en la esquina inferior izquierda -->
+    <div class="fixed bottom-4 left-4 flex space-x-4">
+        <button id="open-file-modal-btn" class="px-8 py-4 bg-gray-900 text-white font-bold rounded-full shadow-lg hover:bg-gray-700 transition duration-300 ease-in-out transform hover:scale-105">
+            Cargar archivos
+        </button>
+        <button id="open-link-modal-btn" class="px-8 py-4 bg-gray-900 text-white font-bold rounded-full shadow-lg hover:bg-gray-700 transition duration-300 ease-in-out transform hover:scale-105">
+            Cargar enlaces
+        </button>
+    </div>
+    
+    <!-- Contenedor para mostrar los elementos de la base de datos -->
+    <div class="fixed bottom-4 right-4 p-4 max-h-96 overflow-y-auto">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Contenido Guardado</h2>
+        <div id="content-list" class="flex flex-col space-y-4">
+            <!-- Los elementos guardados se mostrarán aquí -->
+        </div>
+    </div>
+    
+    <!-- Contenedor del pop-up de carga de ARCHIVOS (inicialmente invisible y con opacidad 0) -->
+    <div id="upload-file-modal" class="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex justify-center items-center p-4 z-50 invisible opacity-0 transition-opacity duration-300">
+
+        <!-- Contenedor principal del formulario, una tarjeta flotante y translúcida -->
+        <div class="bg-gray-800 bg-opacity-70 backdrop-blur-md p-8 rounded-2xl shadow-2xl max-w-2xl w-full relative">
+
+            <!-- Botón de cerrar pop-up -->
+            <button id="close-file-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors duration-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+
+            <!-- Encabezado de la interfaz -->
+            <h1 class="text-3xl md:text-4xl text-white font-bold mb-6 text-center">
+                Subir Archivos
+            </h1>
+            <p class="text-sm md:text-base text-gray-300 text-center mb-8">
+                Arrastra y suelta tus archivos aquí.
+            </p>
+
+            <!-- Área de arrastrar y soltar archivos -->
+            <div id="drop-area" class="border-4 border-dashed border-gray-600 rounded-xl p-8 text-center transition-colors duration-300 mb-6">
+                <svg class="w-12 h-12 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                <div id="drop-area-text">
+                    <p class="text-lg text-gray-400 font-medium">
+                        Arrastra y suelta archivos aquí
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        o haz clic para seleccionar
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Máx. 5 archivos
+                    </p>
+                </div>
+                <input type="file" id="file-input" class="hidden" multiple>
+            </div>
+
+            <!-- Botón de subida para archivos -->
+            <div class="mb-6 flex justify-center">
+                <button id="upload-file-btn" class="w-full py-3 bg-gray-900 text-white font-bold rounded-lg shadow-lg hover:bg-gray-700 transition duration-300 ease-in-out transform hover:scale-105">
+                    Subir Archivos ✨
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenedor del pop-up de carga de ENLACES (inicialmente invisible y con opacidad 0) -->
+    <div id="upload-link-modal" class="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex justify-center items-center p-4 z-50 invisible opacity-0 transition-opacity duration-300">
+        <div class="bg-gray-800 bg-opacity-70 backdrop-blur-md p-8 rounded-2xl shadow-2xl max-w-xl w-full relative">
+            <button id="close-link-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors duration-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+            <h1 class="text-3xl md:text-4xl text-white font-bold mb-6 text-center">
+                Subir Enlace
+            </h1>
+            <p class="text-sm md:text-base text-gray-300 text-center mb-8">
+                Ingresa y guarda un enlace en la base de datos.
+            </p>
+
+            <div class="mb-4">
+                <label for="link-input" class="block text-gray-300 font-medium text-sm mb-2">
+                    Ingresa un enlace
+                </label>
+                <input type="url" id="link-input" placeholder="https://ejemplo.com/archivo" class="w-full p-3 bg-gray-700 bg-opacity-50 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500 transition-colors duration-200">
+            </div>
+
+            <!-- Aquí se mostrará el resultado de la llamada a la API -->
+            <p id="link-result" class="text-center text-sm font-medium h-4"></p>
+
+            <div class="flex flex-col space-y-4 mt-4">
+                <button id="save-link-btn" class="w-full py-3 bg-gray-900 text-white font-bold rounded-lg shadow-lg hover:bg-gray-700 transition duration-300 ease-in-out transform hover:scale-105">
+                    Guardar Enlace ✨
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Script para controlar el pop-up, el arrastrar y soltar, y la lógica de negocio -->
+    <script>
+        // Referencias del DOM
+        const openFileModalBtn = document.getElementById('open-file-modal-btn');
+        const openLinkModalBtn = document.getElementById('open-link-modal-btn');
+        const closeFileModalBtn = document.getElementById('close-file-modal-btn');
+        const closeLinkModalBtn = document.getElementById('close-link-modal-btn');
+        const uploadFileModal = document.getElementById('upload-file-modal');
+        const uploadLinkModal = document.getElementById('upload-link-modal');
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('file-input');
+        const uploadFileBtn = document.getElementById('upload-file-btn');
+        const saveLinkBtn = document.getElementById('save-link-btn');
+        const linkInput = document.getElementById('link-input');
+        const contentList = document.getElementById('content-list');
+        const dropAreaText = document.getElementById('drop-area-text');
+        const linkResult = document.getElementById('link-result');
+
+
+        // Textos originales del área de arrastrar y soltar
+        const originalDropAreaText = dropAreaText.innerHTML;
+
+        // Almacena los archivos seleccionados para la carga
+        let selectedFiles = [];
+
+        // Funciones para abrir y cerrar los modales
+        function openModal(modal) {
+            modal.classList.remove('invisible');
+            modal.classList.add('opacity-100');
+        }
+
+        function closeModal(modal) {
+            modal.classList.remove('opacity-100');
+            modal.addEventListener('transitionend', () => {
+                 if (!modal.classList.contains('opacity-100')) {
+                    modal.classList.add('invisible');
+                }
+            }, { once: true });
+        }
+
+        // Event Listeners para los modales
+        openFileModalBtn.addEventListener('click', () => {
+            closeModal(uploadLinkModal);
+            openModal(uploadFileModal);
+        });
+        openLinkModalBtn.addEventListener('click', () => {
+            closeModal(uploadFileModal);
+            openModal(uploadLinkModal);
+        });
+        closeFileModalBtn.addEventListener('click', () => closeModal(uploadFileModal));
+        closeLinkModalBtn.addEventListener('click', () => closeModal(uploadLinkModal));
+        
+        // Cierra los modales si se hace clic fuera de ellos
+        uploadFileModal.addEventListener('click', (e) => {
+            if (e.target.id === 'upload-file-modal') {
+                closeModal(uploadFileModal);
+            }
+        });
+
+        uploadLinkModal.addEventListener('click', (e) => {
+            if (e.target.id === 'upload-link-modal') {
+                closeModal(uploadLinkModal);
+            }
+        });
+
+        /**
+         * Crea y añade un elemento a la lista de contenido guardado.
+         * @param {string} sourceName El nombre del archivo o la URL del enlace.
+         * @param {string} url La URL para el enlace del elemento.
+         * @param {string} icon Icono a mostrar.
+         */
+        function addContentItemToList(sourceName, url, icon) {
+             const itemDiv = document.createElement('div');
+             itemDiv.className = 'bg-gray-800 bg-opacity-70 backdrop-blur-md p-4 rounded-xl shadow-lg';
+             
+             // Crea el enlace si existe una URL, de lo contrario muestra solo el texto
+             let linkHtml = '';
+             if (url) {
+                 linkHtml = `<a href="${url}" target="_blank" class="file-link text-blue-300 hover:text-blue-200 transition-colors duration-200 font-bold">${icon} ${sourceName}</a>`;
+             } else {
+                 linkHtml = `<span class="font-bold text-white">${icon} ${sourceName}</span>`;
+             }
+
+             itemDiv.innerHTML = `
+                 <p class="text-sm truncate">${linkHtml}</p>
+                 <p class="text-xs text-gray-400 mt-2">Guardado: ${new Date().toLocaleString()}</p>
+             `;
+             contentList.prepend(itemDiv);
+        }
+        
+        /**
+         * Sube un archivo individual al servidor y actualiza la lista.
+         */
+        async function uploadSingleFile(file) {
+            try {
+                showCustomAlert(`Subiendo archivo: ${file.name}...`);
+                const formData = new FormData();
+                formData.append("file", file);
+                const res = await fetch("https://neo-b.factoriapp.site/upload", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    addContentItemToList(file.name, data.filename, '📄');
+                    showCustomAlert(`✅ Archivo '${file.name}' guardado con éxito.`);
+                } else {
+                    throw new Error(data.message || "Error desconocido en la API");
+                }
+            } catch (err) {
+                console.error(err);
+                showCustomAlert(`❌ Error al subir '${file.name}': ${err.message}`);
+            }
+        }
+
+        /**
+         * Maneja el clic en el botón de "Subir Archivo".
+         */
+        uploadFileBtn.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) {
+                showCustomAlert('Por favor, selecciona al menos un archivo primero.');
+                return;
+            }
+
+            // Agrega la clase de procesamiento para el efecto visual
+            dropArea.classList.add('processing');
+            // Muestra el texto de procesamiento en el recuadro
+            dropAreaText.innerHTML = `<p class="text-lg text-gray-400 font-medium">Procesando ${selectedFiles.length} archivo(s)...</p>`;
+
+            // Sube cada archivo en el array
+            for (const file of selectedFiles) {
+                await uploadSingleFile(file);
+            }
+
+            // Una vez que todos los archivos se han subido, limpia el array y la UI
+            selectedFiles = [];
+            dropArea.classList.remove('processing');
+            dropAreaText.innerHTML = originalDropAreaText;
+            fileInput.value = null;
+        });
+
+        /**
+         * Guarda un enlace en la base de datos a través del backend.
+         */
+        saveLinkBtn.addEventListener("click", async () => {
+          const url = linkInput.value.trim();
+
+          if (!url) {
+            linkResult.innerText = "⚠️ Por favor, ingresa un enlace.";
+            linkResult.className = "text-center text-sm font-medium h-4 text-yellow-400";
+            return;
+          }
+
+          linkResult.innerText = "⏳ Conectando con el servidor...";
+          linkResult.className = "text-center text-sm font-medium h-4 text-gray-400";
+
+          try {
+            const res = await fetch("https://neo-b.factoriapp.site/submit-link", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ url }),
+            });
+
+            const data = await res.json();
+            
+            if (data.status === "ok") {
+              linkResult.innerText = "✅ Enlace guardado en Google Sheets";
+              linkResult.className = "text-center text-sm font-medium h-4 text-green-400";
+              addContentItemToList(url, url, '🔗');
+            } else {
+              linkResult.innerText = "❌ Error: " + data.message;
+              linkResult.className = "text-center text-sm font-medium h-4 text-red-400";
+            }
+          } catch (err) {
+            console.error(err);
+            linkResult.innerText = "⚠️ No se pudo conectar con el servidor";
+            linkResult.className = "text-center text-sm font-medium h-4 text-yellow-400";
+          }
+        });
+
+        /**
+         * Muestra un mensaje de alerta temporal en la parte inferior de la pantalla.
+         */
+        function showCustomAlert(message) {
+            const existingAlert = document.getElementById('custom-alert');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+
+            const customAlert = document.createElement('div');
+            customAlert.id = 'custom-alert';
+            customAlert.className = 'fixed bottom-4 left-1/2 -translate-x-1/2 p-4 bg-gray-800 text-white rounded-lg shadow-lg z-50 transition-all duration-300';
+            customAlert.textContent = message;
+            document.body.appendChild(customAlert);
+            setTimeout(() => {
+                customAlert.style.opacity = '0';
+                setTimeout(() => customAlert.remove(), 300);
+            }, 3000);
+        }
+
+        /**
+         * Actualiza la lista de archivos seleccionados, evitando duplicados y actualizando la interfaz.
+         * @param {FileList} filesToAdd La lista de archivos a agregar.
+         */
+        function updateSelectedFiles(filesToAdd) {
+            const newFiles = [...filesToAdd].filter(file => 
+                !selectedFiles.some(existingFile => 
+                    existingFile.name === file.name && existingFile.size === file.size
+                )
+            );
+            selectedFiles = [...selectedFiles, ...newFiles];
+
+            // Limita el array a un máximo de 5 archivos
+            if (selectedFiles.length > 5) {
+                selectedFiles = selectedFiles.slice(0, 5);
+                showCustomAlert('Se ha alcanzado el límite de 5 archivos. Los archivos adicionales no se han agregado.');
+            }
+
+            // Reconstruye el contenido del área de soltar para mostrar la lista de archivos seleccionados
+            if (selectedFiles.length > 0) {
+                 const fileListHtml = selectedFiles.map(file => `<li class="truncate">${file.name}</li>`).join('');
+                 dropAreaText.innerHTML = `
+                    <p class="text-lg text-gray-400 font-medium">Arrastra y suelta archivos aquí</p>
+                    <p class="text-xs text-gray-500 mt-1">o haz clic para seleccionar</p>
+                    <p class="text-xs text-gray-500 mt-1">Máx. 5 archivos</p>
+                    <div class="mt-4">
+                        <p class="text-xs text-gray-500 font-medium">Archivos seleccionados:</p>
+                        <ul class="text-xs text-gray-400 mt-1 text-left max-h-24 overflow-y-auto list-disc list-inside">
+                            ${fileListHtml}
+                        </ul>
+                    </div>
+                 `;
+                 showCustomAlert(`Se han agregado ${newFiles.length} archivo(s) a la lista. Total: ${selectedFiles.length}`);
+            } else {
+                dropAreaText.innerHTML = originalDropAreaText;
+            }
+        }
+
+        // --- Lógica de Arrastrar y Soltar ---
+        // Previene el comportamiento predeterminado del navegador para las zonas de soltar
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, e => e.preventDefault(), false);
+        });
+
+        // Resalta el área cuando se arrastra un archivo sobre ella
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => {
+                dropArea.classList.add('drag-over');
+            }, false);
+        });
+
+        // Elimina el resaltado cuando el archivo sale del área o es soltado
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => {
+                dropArea.classList.remove('drag-over');
+            }, false);
+        });
+
+        // Maneja los archivos soltados
+        dropArea.addEventListener('drop', (e) => {
+            updateSelectedFiles(e.dataTransfer.files);
+        }, false);
+        
+        // Muestra el selector de archivos al hacer clic en el área
+        dropArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        // Maneja los archivos seleccionados a través del input
+        fileInput.addEventListener('change', (e) => {
+            updateSelectedFiles(e.target.files);
+        });
+    </script>
+</body>
+</html>
