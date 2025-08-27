@@ -3,7 +3,20 @@ const { google } = require("googleapis");
 exports.handler = async (event) => {
   try {
     if (event.httpMethod !== "POST") {
-      return { statusCode: 405, body: "Método no permitido" };
+      return {
+        statusCode: 405,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Método no permitido" })
+      };
+    }
+
+    const { filename, content } = JSON.parse(event.body || "{}");
+    if (!filename || !content) {
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Faltan parámetros: filename o content" })
+      };
     }
 
     const auth = new google.auth.GoogleAuth({
@@ -13,17 +26,35 @@ exports.handler = async (event) => {
 
     const drive = google.drive({ version: "v3", auth });
 
-    // Esta llamada solo sirve para verificar que podemos conectar a la API.
-    await drive.about.get({ fields: "user" });
+    const fileMetadata = {
+      name: filename,
+      parents: [process.env.GOOGLE_DRIVE_FOLDER_ID]
+    };
+
+    const media = {
+      mimeType: "text/plain",
+      body: content
+    };
+
+    const file = await drive.files.create({
+      resource: fileMetadata,
+      media,
+      fields: "id, name"
+    });
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: "Conexión a Google Drive exitosa" })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Archivo subido con éxito",
+        file: file.data
+      })
     };
   } catch (error) {
-    console.error("Error de conexión a Drive:", error);
+    console.error("Error al subir a Drive:", error);
     return {
       statusCode: 500,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: "Error interno", details: error.message })
     };
   }
