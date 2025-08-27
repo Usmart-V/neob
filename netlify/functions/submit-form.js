@@ -38,7 +38,7 @@ exports.handler = async (event) => {
 
     const file = await drive.files.create({
       resource: fileMetadata,
-      media,
+      media: media,
       fields: "id, name"
     });
 
