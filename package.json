@@ -2,6 +2,9 @@
   "name": "neob-site",
   "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "build": "echo 'no build step'"
+  },
   "dependencies": {
     "googleapis": "^133.0.0"
   }
