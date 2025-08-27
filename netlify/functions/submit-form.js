@@ -11,7 +11,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // Parseamos el body recibido
+    // Parsear el body recibido
     const body = JSON.parse(event.body || "{}");
 
     if (!body.filename || !body.fileContent) {
@@ -39,11 +39,12 @@ exports.handler = async (event) => {
     const buffer = Buffer.from(body.fileContent, "base64");
     const stream = Readable.from(buffer);
 
-    // Subir archivo
+    // Subir archivo a la carpeta compartida
     const res = await drive.files.create({
       requestBody: {
         name: body.filename,
         parents: [folderId],
+        mimeType: body.mimeType || "application/octet-stream",
       },
       media: {
         mimeType: body.mimeType || "application/octet-stream",
