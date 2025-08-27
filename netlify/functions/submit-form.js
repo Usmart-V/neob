@@ -1,4 +1,5 @@
 const { google } = require("googleapis");
+const { Readable } = require("stream");
 
 exports.handler = async (event) => {
   try {
@@ -34,6 +35,10 @@ exports.handler = async (event) => {
     // Carpeta destino desde variable
     const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
+    // Convertir base64 a stream legible
+    const buffer = Buffer.from(body.fileContent, "base64");
+    const stream = Readable.from(buffer);
+
     // Subir archivo
     const res = await drive.files.create({
       requestBody: {
@@ -42,7 +47,7 @@ exports.handler = async (event) => {
       },
       media: {
         mimeType: body.mimeType || "application/octet-stream",
-        body: Buffer.from(body.fileContent, "base64"),
+        body: stream,
       },
       fields: "id, name",
     });
@@ -64,3 +69,4 @@ exports.handler = async (event) => {
     };
   }
 };
+
