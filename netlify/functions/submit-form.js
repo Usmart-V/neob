@@ -1,56 +1,50 @@
 const { google } = require("googleapis");
-const { Readable } = require("stream");
 
 exports.handler = async (event) => {
   try {
+    // Solo aceptamos POST
     if (event.httpMethod !== "POST") {
       return {
         statusCode: 405,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ error: "Método no permitido" }),
+        body: JSON.stringify({ error: "Método no permitido" })
       };
     }
 
-    // Parsear el body recibido
-    const body = JSON.parse(event.body || "{}");
-
-    if (!body.filename || !body.fileContent) {
+    // Extraer datos del body
+    const { filename, content } = JSON.parse(event.body || "{}");
+    if (!filename || !content) {
       return {
         statusCode: 400,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ error: "Se requieren filename y fileContent" }),
+        body: JSON.stringify({ error: "Faltan parámetros: filename o content" })
       };
     }
 
     // Autenticación con Service Account
-    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-
     const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/drive.file"],
+      credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON),
+      scopes: ["https://www.googleapis.com/auth/drive.file"]
     });
 
     const drive = google.drive({ version: "v3", auth });
 
-    // Carpeta destino desde variable
-    const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+    // Metadatos del archivo
+    const fileMetadata = {
+      name: filename,
+      parents: [process.env.GOOGLE_DRIVE_FOLDER_ID]
+    };
 
-    // Convertir base64 a stream legible
-    const buffer = Buffer.from(body.fileContent, "base64");
-    const stream = Readable.from(buffer);
+    // El contenido lo pasamos como Buffer (texto)
+    const media = {
+      mimeType: "text/plain",
+      body: Buffer.from(content, "utf-8")
+    };
 
-    // Subir archivo a la carpeta compartida
-    const res = await drive.files.create({
-      requestBody: {
-        name: body.filename,
-        parents: [folderId],
-        mimeType: body.mimeType || "application/octet-stream",
-      },
-      media: {
-        mimeType: body.mimeType || "application/octet-stream",
-        body: stream,
-      },
-      fields: "id, name",
+    // Crear archivo en Drive
+    const file = await drive.files.create({
+      resource: fileMetadata,
+      media,
+      fields: "id, name"
     });
 
     return {
@@ -58,15 +52,16 @@ exports.handler = async (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message: "Archivo subido con éxito",
-        file: res.data,
-      }),
+        file: file.data
+      })
     };
-  } catch (err) {
-    console.error("Error al subir a Drive:", err);
+
+  } catch (error) {
+    console.error("Error al subir a Drive:", error);
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: "Error interno", details: err.message }),
+      body: JSON.stringify({ error: "Error interno", details: error.message })
     };
   }
 };
